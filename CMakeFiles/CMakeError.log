@@ -1,0 +1,192 @@
+Performing C++ SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_88b4a/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_88b4a.dir/build.make CMakeFiles/cmTC_88b4a.dir/build
+gmake[1]: Entering directory `/home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_88b4a.dir/src.cxx.o
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++ -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_88b4a.dir/src.cxx.o -c /home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_88b4a
+/apps/spack/scholar/fall20/apps/cmake/3.20.6-gcc-4.8.5-ezq6lqr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_88b4a.dir/link.txt --verbose=1
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++ CMakeFiles/cmTC_88b4a.dir/src.cxx.o -o cmTC_88b4a 
+CMakeFiles/cmTC_88b4a.dir/src.cxx.o: In function `main':
+src.cxx:(.text+0x2d): undefined reference to `pthread_create'
+src.cxx:(.text+0x39): undefined reference to `pthread_detach'
+src.cxx:(.text+0x45): undefined reference to `pthread_cancel'
+src.cxx:(.text+0x56): undefined reference to `pthread_join'
+src.cxx:(.text+0x6a): undefined reference to `pthread_atfork'
+/usr/bin/ld: link errors found, deleting executable `cmTC_88b4a'
+/usr/bin/sha1sum: cmTC_88b4a: No such file or directory
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_88b4a] Error 1
+gmake[1]: Leaving directory `/home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_88b4a/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_59a8f/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_59a8f.dir/build.make CMakeFiles/cmTC_59a8f.dir/build
+gmake[1]: Entering directory `/home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_59a8f.dir/CheckFunctionExists.cxx.o
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++   -DCHECK_FUNCTION_EXISTS=pthread_create -o CMakeFiles/cmTC_59a8f.dir/CheckFunctionExists.cxx.o -c /home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CheckLibraryExists/CheckFunctionExists.cxx
+Linking CXX executable cmTC_59a8f
+/apps/spack/scholar/fall20/apps/cmake/3.20.6-gcc-4.8.5-ezq6lqr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_59a8f.dir/link.txt --verbose=1
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++  -DCHECK_FUNCTION_EXISTS=pthread_create CMakeFiles/cmTC_59a8f.dir/CheckFunctionExists.cxx.o -o cmTC_59a8f  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+/usr/bin/sha1sum: cmTC_59a8f: No such file or directory
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_59a8f] Error 1
+gmake[1]: Leaving directory `/home/chris241/695TA/solutions/ece695-s21-lab3/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_59a8f/fast] Error 2
+
+
+
+Performing C++ SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_75ac6/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_75ac6.dir/build.make CMakeFiles/cmTC_75ac6.dir/build
+gmake[1]: Entering directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_75ac6.dir/src.cxx.o
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++ -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_75ac6.dir/src.cxx.o -c /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_75ac6
+/apps/spack/scholar/fall20/apps/cmake/3.20.6-gcc-4.8.5-ezq6lqr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_75ac6.dir/link.txt --verbose=1
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++ CMakeFiles/cmTC_75ac6.dir/src.cxx.o -o cmTC_75ac6 
+CMakeFiles/cmTC_75ac6.dir/src.cxx.o: In function `main':
+src.cxx:(.text+0x2d): undefined reference to `pthread_create'
+src.cxx:(.text+0x39): undefined reference to `pthread_detach'
+src.cxx:(.text+0x45): undefined reference to `pthread_cancel'
+src.cxx:(.text+0x56): undefined reference to `pthread_join'
+src.cxx:(.text+0x6a): undefined reference to `pthread_atfork'
+/usr/bin/ld: link errors found, deleting executable `cmTC_75ac6'
+/usr/bin/sha1sum: cmTC_75ac6: No such file or directory
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_75ac6] Error 1
+gmake[1]: Leaving directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_75ac6/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_ca57f/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_ca57f.dir/build.make CMakeFiles/cmTC_ca57f.dir/build
+gmake[1]: Entering directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_ca57f.dir/CheckFunctionExists.cxx.o
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++   -DCHECK_FUNCTION_EXISTS=pthread_create -o CMakeFiles/cmTC_ca57f.dir/CheckFunctionExists.cxx.o -c /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CheckLibraryExists/CheckFunctionExists.cxx
+Linking CXX executable cmTC_ca57f
+/apps/spack/scholar/fall20/apps/cmake/3.20.6-gcc-4.8.5-ezq6lqr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ca57f.dir/link.txt --verbose=1
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++  -DCHECK_FUNCTION_EXISTS=pthread_create CMakeFiles/cmTC_ca57f.dir/CheckFunctionExists.cxx.o -o cmTC_ca57f  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+/usr/bin/sha1sum: cmTC_ca57f: No such file or directory
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_ca57f] Error 1
+gmake[1]: Leaving directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_ca57f/fast] Error 2
+
+
+
+Performing C++ SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_0b786/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_0b786.dir/build.make CMakeFiles/cmTC_0b786.dir/build
+gmake[1]: Entering directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_0b786.dir/src.cxx.o
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++ -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_0b786.dir/src.cxx.o -c /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp/src.cxx
+Linking CXX executable cmTC_0b786
+/apps/spack/scholar/fall20/apps/cmake/3.20.6-gcc-4.8.5-ezq6lqr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0b786.dir/link.txt --verbose=1
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++ CMakeFiles/cmTC_0b786.dir/src.cxx.o -o cmTC_0b786 
+CMakeFiles/cmTC_0b786.dir/src.cxx.o: In function `main':
+src.cxx:(.text+0x2d): undefined reference to `pthread_create'
+src.cxx:(.text+0x39): undefined reference to `pthread_detach'
+src.cxx:(.text+0x45): undefined reference to `pthread_cancel'
+src.cxx:(.text+0x56): undefined reference to `pthread_join'
+src.cxx:(.text+0x6a): undefined reference to `pthread_atfork'
+/usr/bin/ld: link errors found, deleting executable `cmTC_0b786'
+/usr/bin/sha1sum: cmTC_0b786: No such file or directory
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_0b786] Error 1
+gmake[1]: Leaving directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_0b786/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/gmake -f Makefile cmTC_64a6c/fast && /usr/bin/gmake  -f CMakeFiles/cmTC_64a6c.dir/build.make CMakeFiles/cmTC_64a6c.dir/build
+gmake[1]: Entering directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+Building CXX object CMakeFiles/cmTC_64a6c.dir/CheckFunctionExists.cxx.o
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++   -DCHECK_FUNCTION_EXISTS=pthread_create -o CMakeFiles/cmTC_64a6c.dir/CheckFunctionExists.cxx.o -c /home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CheckLibraryExists/CheckFunctionExists.cxx
+Linking CXX executable cmTC_64a6c
+/apps/spack/scholar/fall20/apps/cmake/3.20.6-gcc-4.8.5-ezq6lqr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_64a6c.dir/link.txt --verbose=1
+/apps/spack/scholar/fall20/apps/gcc/6.3.0-gcc-4.8.5-234aoxy/bin/c++  -DCHECK_FUNCTION_EXISTS=pthread_create CMakeFiles/cmTC_64a6c.dir/CheckFunctionExists.cxx.o -o cmTC_64a6c  -lpthreads 
+/usr/bin/ld: cannot find -lpthreads
+/usr/bin/sha1sum: cmTC_64a6c: No such file or directory
+collect2: error: ld returned 1 exit status
+gmake[1]: *** [cmTC_64a6c] Error 1
+gmake[1]: Leaving directory `/home/chris241/695TA/solutions/60827_assignment3/CMakeFiles/CMakeTmp'
+gmake: *** [cmTC_64a6c/fast] Error 2
+
+
+
