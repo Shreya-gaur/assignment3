@@ -189,10 +189,10 @@
 	 * @param batchSize uint32_t		
 	 * @return int 
 	 */
-	extern int convLayer_gpu ( float * input, TensorShape iShape, 
+	extern __global__ void  convLayer_gpu ( float * input, TensorShape iShape, 
 		float * filter, TensorShape fShape, 
-		float * bias, float * output, TensorShape & oShape, 
-		ConvLayerArgs & args, uint32_t batchSize);
+		float * bias, float * output, TensorShape oShape, //removed & after TensorShape 
+		ConvLayerArgs args, uint32_t batchSize);
 
 	extern int runGpuGemm (int argc, char ** argv);
 

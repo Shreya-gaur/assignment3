@@ -1,6 +1,12 @@
 
 #include "cudaLib.cuh"
 
+// https://qiita.com/naoyuki_ichimura/items/8c80e67a10d99c2fb53c
+// https://qiita.com/naoyuki_ichimura/items/519a4b75f57e08619374
+
+#define BLOCK_SIZE 8
+
+
 void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
 	if (code != cudaSuccess) 
@@ -104,7 +110,7 @@ int runGpuConv (int argc, char ** argv) {
 	TensorShape oShape;
 
 	uint64_t errorCount = evaluateGpuConv(iShape, fShape, oShape, convArgs);
-	std::cout << "Found " << errorCount << " / " << tensorSize(oShape) << " errors \n";
+	std::cout << "\nFound " << errorCount << " / " << tensorSize(oShape) << " errors \n";
 	return 0;
 }
 
@@ -113,25 +119,256 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 
 	uint64_t errorCount = 0;
 
-	//	STUDENT: Add code here
+	//	STUDENT: Add code here --> Added
+
+	float *input_d, *output_d, *bias_d, *filter_d;
+
+	if (iShape.channels == 0) iShape.channels = 1;
+
+	printf("iShape.height: %i, iShape.width: %i, iShape.channel: %i, iShape.count: %i \n", iShape.height, iShape.width, iShape.channels, iShape.count);
+	printf("args.strideH: %i, args.strideW: %i, args.padH: %i, args.padW: %i \n", args.strideH, args.strideW, args.padH, args.padW);
+	printf("filter.height: %i, filter.width: %i, filter.channel: %i, filter.batch: %i \n", fShape.height, fShape.width, fShape.channels, fShape.count); 
+
+	oShape.height 	= (iShape.height + 2 * args.padH - fShape.height) / args.strideH + 1;
+	oShape.width	= (iShape.width  + 2 * args.padW - fShape.width)  / args.strideW + 1;
+	oShape.channels	= (fShape.count);
+	oShape.count 	= 1;				//	Might scale to batch size
+
+	printf("oShape.height: %i, oShape.width: %i, oShape.channel: %i \n", oShape.height, oShape.width, oShape.channels);
+
+	float * in = nullptr;
+	float * filter = nullptr;
+	float * bias = nullptr; 
+	float * out = nullptr;
+	float * out_cpu = nullptr;
+
+	int retVal;
+	retVal = makeTensor(&in, iShape);
+	if (retVal != 0) {
+		std::cout << "Unable to make tensor \n" ;
+		return -1;
+	}
+	retVal = makeTensor(&filter, fShape);
+	if (retVal != 0) {
+		std::cout << "Unable to make tensor \n" ;
+		return -1;
+	}
+	retVal = makeVector(&bias, oShape.channels);
+	if (retVal != 0) {
+		std::cout << "Unable to make vector \n" ;
+		return -1;
+	}
+
+	if(cudaMalloc(&input_d,  tensorSize(iShape) * sizeof(float))!=cudaSuccess){
+		std::cout<< "Size Requested: "<< tensorSize(iShape) * sizeof(float);
+		std::cout<< "\n ERROR ERROR!!!!! RUN FOR THE HILLS!!!!! INPUT MEMORY ALLOCATION FAILURE \n";
+		return -1;
+	}
+
+	if(cudaMalloc(&filter_d, tensorSize(fShape) * sizeof(float))!=cudaSuccess){
+		std::cout<< "Size Requested: "<< tensorSize(fShape) * sizeof(float);
+		std::cout<< "\n ERROR ERROR!!!!! RUN FOR THE HILLS!!!!! FILTER MEMORY ALLOCATION FAILURE \n";
+		return -1;
+	}
+
+	if(cudaMalloc(&bias_d,  oShape.channels * sizeof(float))!=cudaSuccess){
+		std::cout<< "Size Requested: "<< oShape.channels * sizeof(float);
+		std::cout<< "\n ERROR ERROR!!!!! RUN FOR THE HILLS!!!!! BIAS MEMORY ALLOCATION FAILURE \n";
+		return -1;
+	}
+
+	std::cout << "OutShape : " << oShape << " \n";
+	out = (float *) malloc (tensorSize(oShape) * sizeof(float));
+
+	if(cudaMalloc(&output_d,tensorSize(oShape) * sizeof(float))!=cudaSuccess){
+		std::cout<< "Size Requested: "<< tensorSize(oShape) * sizeof(float);
+		std::cout<< "ERROR ERROR!!!!! RUN FOR THE HILLS!!!!!OUTPUT MEMORY ALLOCATION FAILURE \n";
+		return -1;
+	}
+
+	std::cout << "Input" << "\n"; 
+
+	for(uint32_t ch = 0; ch < iShape.channels; ch++){
+		std::cout<< "Channel: "<< ch << "\n";
+		for (uint32_t i = 0; i < iShape.height; i++){
+			for(uint32_t j = 0; j < iShape.width; j++){
+				std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
+			}
+			std::cout << "\n";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "\n"; 	
+
+	std::cout << "Filter" << "\n"; 
+
+	for(uint32_t ch = 0; ch < fShape.channels; ch++){
+		std::cout<< "Channel: "<< ch << "\n";
+
+		for (uint32_t i = 0; i < fShape.height; i++){
+			for(uint32_t j = 0; j < fShape.width; j++){
+				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
+				std::cout << filter[ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
+			}
+			std::cout << "\n";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "Bias" << "\n";  
+
+	for(uint32_t ch = 0; ch < oShape.channels; ch++ ){
+		std::cout<< "Channel: "<< ch << "\n";
+		std::cout << bias[ch] << " ";
+	}
+
+	std::cout <<"\n";
+
+	cudaMemcpy(input_d, in, tensorSize(iShape) * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(filter_d, filter, tensorSize(fShape) * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpy(bias_d, bias, oShape.channels * sizeof(float), cudaMemcpyHostToDevice);
+
+	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE, oShape.channels);
+    dim3 dimGrid(ceil((float)oShape.width / (float)dimBlock.x), ceil((float)oShape.height / (float)dimBlock.y));
+
+	convLayer_gpu<<<dimGrid, dimBlock>>>(input_d, iShape, filter_d, fShape, bias_d, output_d, oShape, args, 1);
+
+	cudaMemcpy(out, output_d, tensorSize(oShape) * sizeof(float), cudaMemcpyDeviceToHost);
+
+	std::cout << "\n"; 	
+	std::cout << "Output GPU" << "\n"; 
+
+	for(uint32_t ch = 0; ch < oShape.channels; ch++){
+		std::cout<< "Channel: "<< ch << "\n";
+		for (uint32_t i = 0; i < oShape.height; i++){
+			for(uint32_t j = 0; j < oShape.width; j++){
+				std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
+			}
+			std::cout << "\n";
+		}
+		std::cout << "\n";
+	}
 
 	#ifndef CONV_CHECK_DISABLE
-		//	STUDENT: Verify number of errors in ouput matrix generated by convLayer_gpu
+		//	STUDENT: Verify number of errors in output matrix generated by convLayer_gpu
 		//	STUDENT: Compare results with CPU output
 		//	STUDENT: Return error count
+		out_cpu = (float *) malloc (tensorSize(oShape) * sizeof(float));
+		
+		auto tStart = std::chrono::high_resolution_clock::now();		
 
+		convLayer_cpu(in, iShape, filter, fShape, bias, out_cpu, oShape, args, 1);
+		
+		auto tEnd= std::chrono::high_resolution_clock::now();
+
+		std::chrono::duration<double> time_span = (tEnd- tStart);
+
+		for(uint32_t ch = 0; ch < oShape.channels; ch++){
+			for (uint32_t i = 0; i < oShape.height; i++){
+				for(uint32_t j = 0; j < oShape.width; j++){
+					float output_gpu = out[ch * oShape.width * oShape.height + i * oShape.width + j];
+					float output_cpu = out_cpu[ch * oShape.width * oShape.height + i * oShape.width + j];
+					if(floor(fabs(output_gpu - output_cpu)) != 0){
+						printf("Error at (%i, %i, %i) -> Actual Value: %f GPU Value: %f\n", i, j, ch, out_cpu[ch * oShape.width * oShape.height + i * oShape.width + j], out[ch * oShape.width * oShape.height + i * oShape.width + j]);
+						printf("Error at (%i, %i, %i) -> Difference: %f\n", i, j, ch, floor(output_gpu - output_cpu));
+						errorCount += 1;
+					}
+				}
+			}
+		}
+
+		std::cout << "\n"; 	
+		std::cout << "Output CPU" << "\n"; 
+
+		for(uint32_t ch = 0; ch < oShape.channels; ch++){
+			std::cout<< "Channel: "<< ch << "\n";
+			for (uint32_t i = 0; i < oShape.height; i++){
+				for(uint32_t j = 0; j < oShape.width; j++){
+					std::cout << out_cpu[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
+				}
+				std::cout << "\n";
+			}
+			std::cout << "\n";
+		}	
+
+		std::cout << "\n"; 
+		std::cout << "It took " << time_span.count() << " seconds on CPU.";	
 
 	#endif
+
+	free(in);
+	free(filter);
+	free(bias);
+	free(out);
+
+	cudaFree(input_d);
+	cudaFree(filter_d);
+	cudaFree(bias_d);
+	cudaFree(output_d);
 
 	return errorCount;
 }
 
-int convLayer_gpu ( float * input, TensorShape iShape, 
+__global__
+void convLayer_gpu ( float * input, TensorShape iShape, 
 	float * filter, TensorShape fShape, 
-	float * bias, float * output, TensorShape & oShape, 
-	ConvLayerArgs & args, uint32_t batchSize) {
+	float * bias, float * output, TensorShape oShape, //removed & after TensorShap 
+	ConvLayerArgs args, uint32_t batchSize) {
+	
+	int row_gl = blockDim.y * blockIdx.y + threadIdx.y;
+	int col_gl = blockDim.x * blockIdx.x + threadIdx.x;
+	int channel_gl = blockDim.z * blockIdx.z + threadIdx.z;
 
-	return 0;
+	// float conv_op = 0;
+
+	if (col_gl < oShape.width && row_gl < oShape.height && channel_gl < oShape.channels) {
+
+		for (uint32_t n = 0; n < batchSize; ++ n) {
+			//	For each output fmap value
+			//	STUDENT: Set output fmap to bias
+			// O[n][m][x][y] = B[m];
+
+			// conv_op = bias[channel_gl];
+			
+			output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = bias[channel_gl];\
+			
+			for (uint32_t i = 0; i < fShape.height; ++ i) {
+				for (uint32_t j = 0; j < fShape.width; ++ j) {
+					for (uint32_t k = 0; k < fShape.channels; ++ k) {
+
+						//	STUDENT: Calculate
+						//	O[n][m][x][y] += 
+						//		I[n][k][args.strideH * x][args.strideW * y] *
+						//		W[m][k][i][j];
+
+						uint32_t input_row = (args.strideH * row_gl) + i;
+						uint32_t input_col = (args.strideW * col_gl) + j;
+
+						// if (input_col < iShape.width && input_row < iShape.height && k < iShape.channels) { 
+							float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
+							// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
+							float filter_element = filter[channel_gl * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
+							output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] += input_element * filter_element;
+							// conv_op += input_element * filter_element;
+						// } 
+					}
+				}
+			}
+
+			// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = conv_op;
+		
+		//	STUDENT: Check by disabling activation
+		//	STUDENT: Apply Activation here
+			if (args.activation) {
+				//	O[n][m][x][y] = ReLU( O[n][m][x][y] );
+				if (output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] < 0){
+					output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = 0;
+				}
+			}
+		}
+	}
+	return;
 }
 
 
