@@ -320,7 +320,7 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 	int col_gl = blockDim.x * blockIdx.x + threadIdx.x;
 	int channel_gl = blockDim.z * blockIdx.z + threadIdx.z;
 
-	// float conv_op = 0;
+	float conv_op = 0;
 
 	if (col_gl < oShape.width && row_gl < oShape.height && channel_gl < oShape.channels) {
 
@@ -329,9 +329,9 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 			//	STUDENT: Set output fmap to bias
 			// O[n][m][x][y] = B[m];
 
-			// conv_op = bias[channel_gl];
+			conv_op = bias[channel_gl];
 			
-			output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = bias[channel_gl];\
+			// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = bias[channel_gl];\
 			
 			for (uint32_t i = 0; i < fShape.height; ++ i) {
 				for (uint32_t j = 0; j < fShape.width; ++ j) {
@@ -345,18 +345,16 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 						uint32_t input_row = (args.strideH * row_gl) + i;
 						uint32_t input_col = (args.strideW * col_gl) + j;
 
-						// if (input_col < iShape.width && input_row < iShape.height && k < iShape.channels) { 
-							float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
-							// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
-							float filter_element = filter[channel_gl * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
-							output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] += input_element * filter_element;
-							// conv_op += input_element * filter_element;
-						// } 
+						float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
+						// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
+						float filter_element = filter[channel_gl * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
+						// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] += input_element * filter_element;
+						conv_op += input_element * filter_element;
 					}
 				}
 			}
 
-			// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = conv_op;
+			output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = conv_op;
 		
 		//	STUDENT: Check by disabling activation
 		//	STUDENT: Apply Activation here
@@ -374,11 +372,41 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 
 int runGpuGemm (int argc, char ** argv) {
 
-	evaluateGpuGemm();
+	TensorShape aShape = {1, 1, 6, 4};
+	TensorShape bShape = {1, 1, 4, 8};
+	TensorShape cShape;
+	GemmLayerArgs args = {2, 2, 1};
+
+	evaluateGpuGemm(aShape, bShape, cShape, args);
 	return 0;
 }
 
-int evaluateGpuGemm () {
+int evaluateGpuGemm(TensorShape aShape, TensorShape bShape, 
+	TensorShape & cShape, GemmLayerArgs args) {
+
+	if (aShape.width != bShape.height || aShape.channels != bShape.channels 
+		|| aShape.count != bShape.count) {
+		std::cout << "Dimensions dont match : " << aShape << " x " << bShape << " \n";
+		return -1;
+	}
+
+	cShape.height = aShape.height;
+	cShape.width = bShape.width;
+	cShape.channels = aShape.channels;
+	cShape.count = aShape.count;
+
+	float * a = nullptr;
+	float * b = nullptr;
+
+	makeTensor(& a, aShape);
+	makeTensor(& b, bShape);
+
+	float * c = (float *) malloc(tensorSize(cShape) * sizeof(float));
+
+	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE, cShape.channels);
+    dim3 dimGrid(ceil((float)oShape.width / (float)dimBlock.x), ceil((float)oShape.height / (float)dimBlock.y));
+
+	gemmLayer_cpu<<<dimGrid, dimBlock>>>(a, aShape, b, bShape, c, cShape, args, 1);
 
 	return 0;
 }
