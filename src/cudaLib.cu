@@ -1,10 +1,7 @@
 
 #include "cudaLib.cuh"
 
-// https://qiita.com/naoyuki_ichimura/items/8c80e67a10d99c2fb53c
-// https://qiita.com/naoyuki_ichimura/items/519a4b75f57e08619374
-
-#define BLOCK_SIZE 8
+#define BLOCK_SIZE 16
 
 
 void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -229,10 +226,18 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 	cudaMemcpy(filter_d, filter, tensorSize(fShape) * sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(bias_d, bias, oShape.channels * sizeof(float), cudaMemcpyHostToDevice);
 
-	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE, oShape.channels);
-    dim3 dimGrid(ceil((float)oShape.width / (float)dimBlock.x), ceil((float)oShape.height / (float)dimBlock.y));
+	int tileW = BLOCK_SIZE + (fShape.width -  args.strideW);
+	int tileH = BLOCK_SIZE + (fShape.height - args.strideH);
+	int threadPerBlockH = 16;
 
-	convLayer_gpu<<<dimGrid, dimBlock>>>(input_d, iShape, filter_d, fShape, bias_d, output_d, oShape, args, 1);
+	int sharedmemSize = tileW * tileH * iShape.channels * sizeof(float);
+
+	dim3 dimBlock(tileW, threadPerBlockH);
+	printf("\ndimBlock: (%i, %i)\n", tileW, threadPerBlockH);
+    dim3 dimGrid(ceil((float)iShape.width / (float)BLOCK_SIZE), ceil((float)iShape.height / (float)BLOCK_SIZE));
+	std::cout << "dimGrid: ("<< ceil((float)iShape.width / (float)BLOCK_SIZE) << "," << ceil((float)iShape.height / (float) BLOCK_SIZE) << ")\n";
+
+	convLayer_gpu<<<dimGrid, dimBlock, sharedmemSize>>>(input_d, iShape, filter_d, fShape, bias_d, output_d, oShape, args, 1);
 
 	cudaMemcpy(out, output_d, tensorSize(oShape) * sizeof(float), cudaMemcpyDeviceToHost);
 
@@ -315,57 +320,139 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 	float * filter, TensorShape fShape, 
 	float * bias, float * output, TensorShape oShape, //removed & after TensorShap 
 	ConvLayerArgs args, uint32_t batchSize) {
-	
-	int row_gl = blockDim.y * blockIdx.y + threadIdx.y;
-	int col_gl = blockDim.x * blockIdx.x + threadIdx.x;
-	int channel_gl = blockDim.z * blockIdx.z + threadIdx.z;
 
-	float conv_op = 0;
+    extern __shared__ float shrinput[];
 
-	if (col_gl < oShape.width && row_gl < oShape.height && channel_gl < oShape.channels) {
+	const uint32_t tileW = BLOCK_SIZE + (fShape.width - args.strideW);
+	const uint32_t tileH = BLOCK_SIZE + (fShape.height - args.strideH);
+	const uint32_t nosubBlk = ceil((float)tileH / (float)blockDim.y);
 
-		for (uint32_t n = 0; n < batchSize; ++ n) {
-			//	For each output fmap value
-			//	STUDENT: Set output fmap to bias
-			// O[n][m][x][y] = B[m];
+    const uint32_t blockStartCol = blockIdx.x * BLOCK_SIZE;
+    const uint32_t blockEndCol = blockStartCol + BLOCK_SIZE;
+    const uint32_t blockStartRow = blockIdx.y * BLOCK_SIZE;
+    const uint32_t blockEndRow = blockStartRow + BLOCK_SIZE;
 
-			conv_op = bias[channel_gl];
+    const uint32_t tileStartCol = blockStartCol;
+    const uint32_t tileEndCol = blockEndCol + (fShape.width - args.strideW);
+    const uint32_t tileEndClampedCol = min(tileEndCol, iShape.width);
+
+    const uint32_t tileStartRow = blockStartRow;
+    const uint32_t tileEndRow = blockEndRow + fShape.width - args.strideW;
+    const uint32_t tileEndClampedRow = min(tileEndRow, iShape.height);
+
+    // Copy the tile into shared memory
+    uint32_t tilePixelPosCol = threadIdx.x;
+    uint32_t iPixelPosCol = tileStartCol + tilePixelPosCol;
+
+	for(uint32_t ch = 0; ch < iShape.channels; ch++){
+		for( uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
+			// printf("subBlockNo.: %i\n",subBlockNo);
+
+			uint32_t tilePixelPosRow = subBlockNo * blockDim.y + threadIdx.y;		
+			uint32_t iPixelPosRow = tileStartRow + tilePixelPosRow;	
+			uint32_t tilePixelPos = ch * tileH * tileW + tilePixelPosRow * tileW + tilePixelPosCol;
+
+			if( iPixelPosCol < tileEndClampedCol && iPixelPosRow < tileEndClampedRow ) {
+
+				uint32_t iPixelPos = ch * iShape.width * iShape.height + iPixelPosRow * iShape.width + iPixelPosCol;
+				shrinput[tilePixelPos] = input[iPixelPos];
+				// printf("Loaded element (%i, %i, %i) in shrinput (%i, %i, %i) for block (%i, %i) by thread (%i, %i): %f\n", ch, iPixelPosRow, iPixelPosCol, ch, tilePixelPosRow, tilePixelPosCol, blockIdx.y, blockIdx.x, threadIdx.y, threadIdx.x, shrinput[tilePixelPos]);
 			
-			// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = bias[channel_gl];\
-			
-			for (uint32_t i = 0; i < fShape.height; ++ i) {
-				for (uint32_t j = 0; j < fShape.width; ++ j) {
-					for (uint32_t k = 0; k < fShape.channels; ++ k) {
-
-						//	STUDENT: Calculate
-						//	O[n][m][x][y] += 
-						//		I[n][k][args.strideH * x][args.strideW * y] *
-						//		W[m][k][i][j];
-
-						uint32_t input_row = (args.strideH * row_gl) + i;
-						uint32_t input_col = (args.strideW * col_gl) + j;
-
-						float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
-						// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
-						float filter_element = filter[channel_gl * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
-						// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] += input_element * filter_element;
-						conv_op += input_element * filter_element;
-					}
-				}
 			}
-
-			output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = conv_op;
 		
-		//	STUDENT: Check by disabling activation
-		//	STUDENT: Apply Activation here
-			if (args.activation) {
-				//	O[n][m][x][y] = ReLU( O[n][m][x][y] );
-				if (output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] < 0){
-					output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = 0;
+		}
+	}
+
+	__syncthreads();
+
+    tilePixelPosCol = threadIdx.x;
+    iPixelPosCol = tileStartCol + tilePixelPosCol;
+
+	// for(uint32_t n = 0; n < batchSize; n++){
+	for(uint32_t m = 0; m < oShape.channels; m++){
+		for(uint32_t ch = 0; ch < iShape.channels; ch++){
+			for(uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
+
+				uint32_t tilePixelPosRow = subBlockNo * blockDim.y + threadIdx.y;
+				uint32_t iPixelPosRow = tileStartRow + tilePixelPosRow;
+
+				if( iPixelPosCol >= tileStartCol && iPixelPosCol < tileEndClampedCol - (fShape.width - args.strideW) &&
+					iPixelPosRow >= tileStartRow && iPixelPosRow < tileEndClampedRow - (fShape.height - args.strideH) ) {
+					
+					uint32_t oPixelPosCol = iPixelPosCol;
+					uint32_t oPixelPosRow = iPixelPosRow;
+					uint32_t oPixelPos = m * oShape.height * oShape.width + oPixelPosRow * oShape.width + oPixelPosCol;
+					uint32_t tilePixelPos = tilePixelPosRow * args.strideH * tileW + tilePixelPosCol * args.strideW;
+
+					float conv_op = bias[m];
+					// float conv_op = 0.0;
+
+					for( uint32_t i = 0; i < fShape.height; i++ ) {
+						for( uint32_t j = 0; j < fShape.width; j++ ) {
+							for (uint32_t k = 0; k < fShape.channels; k++){
+								int tilePixelPosOffset = i * tileW + j;
+								int coefPos = m * fShape.channels * fShape.width * fShape.height + k * fShape.width * fShape.height + i * fShape.width + j;
+								// printf("Loaded element shrinput (%i, %i, %i) and filter (%i, %i, %i, %i) for block (%i, %i) by thread (%i, %i): %f\n", k, tilePixelPosRow, tilePixelPosCol, m, k, i, j, blockIdx.y, blockIdx.x, threadIdx.y, threadIdx.x, shrinput[k * tileW * tileH + tilePixelPos]);
+								conv_op += shrinput[k * tileW * tileH + tilePixelPos + tilePixelPosOffset] * filter[coefPos];
+								// conv_op += shrinput[tilePixelPos];
+							}
+						}
+					}
+
+					output[oPixelPos] = conv_op;
+					// printf("Output Element (%i, %i, %i): %f\n", m, iPixelPosRow, iPixelPosCol, output[oPixelPos]);
+
 				}
 			}
 		}
 	}
+	// }
+        
+
+	// if (col_gl < oShape.width && row_gl < oShape.height && channel_gl < oShape.channels) {
+
+	// 	for (uint32_t n = 0; n < batchSize; ++ n) {
+	// 		//	For each output fmap value
+	// 		//	STUDENT: Set output fmap to bias
+	// 		// O[n][m][x][y] = B[m];
+
+	// 		conv_op = bias[channel_gl];
+			
+	// 		// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = bias[channel_gl];\
+			
+	// 		for (uint32_t i = 0; i < fShape.height; ++ i) {
+	// 			for (uint32_t j = 0; j < fShape.width; ++ j) {
+	// 				for (uint32_t k = 0; k < fShape.channels; ++ k) {
+
+	// 					//	STUDENT: Calculate
+	// 					//	O[n][m][x][y] += 
+	// 					//		I[n][k][args.strideH * x][args.strideW * y] *
+	// 					//		W[m][k][i][j];
+
+	// 					uint32_t input_row = (args.strideH * row_gl) + i;
+	// 					uint32_t input_col = (args.strideW * col_gl) + j;
+
+	// 					float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
+	// 					// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
+	// 					float filter_element = filter[channel_gl * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
+	// 					// output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] += input_element * filter_element;
+	// 					conv_op += input_element * filter_element;
+	// 				}
+	// 			}
+	// 		}
+
+	// 		output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = conv_op;
+		
+	// 	//	STUDENT: Check by disabling activation
+	// 	//	STUDENT: Apply Activation here
+	// 		if (args.activation) {
+	// 			//	O[n][m][x][y] = ReLU( O[n][m][x][y] );
+	// 			if (output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] < 0){
+	// 				output[n * oShape.channels * oShape.height * oShape.width + channel_gl * oShape.height * oShape.width + row_gl * oShape.width + col_gl] = 0;
+	// 			}
+	// 		}
+	// 	}
+	// }
 	return;
 }
 
@@ -377,36 +464,35 @@ int runGpuGemm (int argc, char ** argv) {
 	TensorShape cShape;
 	GemmLayerArgs args = {2, 2, 1};
 
-	evaluateGpuGemm(aShape, bShape, cShape, args);
+	evaluateGpuGemm();
 	return 0;
 }
 
-int evaluateGpuGemm(TensorShape aShape, TensorShape bShape, 
-	TensorShape & cShape, GemmLayerArgs args) {
+int evaluateGpuGemm() {
 
-	if (aShape.width != bShape.height || aShape.channels != bShape.channels 
-		|| aShape.count != bShape.count) {
-		std::cout << "Dimensions dont match : " << aShape << " x " << bShape << " \n";
-		return -1;
-	}
+	// if (aShape.width != bShape.height || aShape.channels != bShape.channels 
+	// 	|| aShape.count != bShape.count) {
+	// 	std::cout << "Dimensions dont match : " << aShape << " x " << bShape << " \n";
+	// 	return -1;
+	// }
 
-	cShape.height = aShape.height;
-	cShape.width = bShape.width;
-	cShape.channels = aShape.channels;
-	cShape.count = aShape.count;
+	// cShape.height = aShape.height;
+	// cShape.width = bShape.width;
+	// cShape.channels = aShape.channels;
+	// cShape.count = aShape.count;
 
-	float * a = nullptr;
-	float * b = nullptr;
+	// float * a = nullptr;
+	// float * b = nullptr;
 
-	makeTensor(& a, aShape);
-	makeTensor(& b, bShape);
+	// makeTensor(& a, aShape);
+	// makeTensor(& b, bShape);
 
-	float * c = (float *) malloc(tensorSize(cShape) * sizeof(float));
+	// // float * c = (float *) malloc(tensorSize(cShape) * sizeof(float));
 
-	dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE, cShape.channels);
-    dim3 dimGrid(ceil((float)oShape.width / (float)dimBlock.x), ceil((float)oShape.height / (float)dimBlock.y));
+	// // dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE, cShape.channels);
+    // // dim3 dimGrid(ceil((float)oShape.width / (float)dimBlock.x), ceil((float)oShape.height / (float)dimBlock.y));
 
-	gemmLayer_cpu<<<dimGrid, dimBlock>>>(a, aShape, b, bShape, c, cShape, args, 1);
+	// // gemmLayer_cpu<<<dimGrid, dimBlock>>>(a, aShape, b, bShape, c, cShape, args, 1);
 
 	return 0;
 }
