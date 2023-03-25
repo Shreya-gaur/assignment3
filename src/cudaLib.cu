@@ -464,35 +464,12 @@ int runGpuGemm (int argc, char ** argv) {
 	TensorShape cShape;
 	GemmLayerArgs args = {2, 2, 1};
 
-	evaluateGpuGemm();
+	// evaluateGpuGemm();
+
 	return 0;
 }
 
 int evaluateGpuGemm() {
-
-	// if (aShape.width != bShape.height || aShape.channels != bShape.channels 
-	// 	|| aShape.count != bShape.count) {
-	// 	std::cout << "Dimensions dont match : " << aShape << " x " << bShape << " \n";
-	// 	return -1;
-	// }
-
-	// cShape.height = aShape.height;
-	// cShape.width = bShape.width;
-	// cShape.channels = aShape.channels;
-	// cShape.count = aShape.count;
-
-	// float * a = nullptr;
-	// float * b = nullptr;
-
-	// makeTensor(& a, aShape);
-	// makeTensor(& b, bShape);
-
-	// // float * c = (float *) malloc(tensorSize(cShape) * sizeof(float));
-
-	// // dim3 dimBlock(BLOCK_SIZE, BLOCK_SIZE, cShape.channels);
-    // // dim3 dimGrid(ceil((float)oShape.width / (float)dimBlock.x), ceil((float)oShape.height / (float)dimBlock.y));
-
-	// // gemmLayer_cpu<<<dimGrid, dimBlock>>>(a, aShape, b, bShape, c, cShape, args, 1);
 
 	return 0;
 }
