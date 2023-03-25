@@ -638,9 +638,9 @@ void matMulNaiveCpu (int N, int *a, int *b, int *c) {
     }
 }
 
-
-
 int runCpuGemm (int argc, char ** argv) {
+
+	printf("\nEntered runCpuGemm \n");
 
 	TensorShape aShape = {1, 1, 6, 4};
 	TensorShape bShape = {1, 1, 4, 8};
@@ -653,6 +653,8 @@ int runCpuGemm (int argc, char ** argv) {
 
 int executeCpuGemm (TensorShape aShape, TensorShape bShape, 
 	TensorShape & cShape, GemmLayerArgs args) {
+
+	// printf("\nEntered executeCpuGemm \n");
 
 	if (aShape.width != bShape.height || aShape.channels != bShape.channels 
 		|| aShape.count != bShape.count) {
@@ -671,9 +673,39 @@ int executeCpuGemm (TensorShape aShape, TensorShape bShape,
 	makeTensor(& a, aShape);
 	makeTensor(& b, bShape);
 
+	std::cout << "\n";
+	std::cout << "Input a" <<"\n";
+
+	for (uint32_t i = 0; i < aShape.height; i++){
+		for(uint32_t j = 0; j < aShape.width; j++){
+			std::cout << a[i * aShape.width + j] << " ";
+		}
+		std::cout << "\n";
+	}
+
+	std::cout << "\n";
+	std::cout << "Input b" <<"\n";
+
+	for (uint32_t i = 0; i < bShape.height; i++){
+		for(uint32_t j = 0; j < bShape.width; j++){
+			std::cout << b[i * bShape.width + j] << " ";
+		}
+		std::cout << "\n";
+	}	
+
 	float * c = (float *) malloc(tensorSize(cShape) * sizeof(float));
 
 	gemmLayer_cpu (a, aShape, b, bShape, c, cShape, args, 1);
+
+	std::cout << "\n";
+	std::cout << "Output" <<"\n";
+
+	for (uint32_t i = 0; i < cShape.height; i++){
+		for(uint32_t j = 0; j < cShape.width; j++){
+			std::cout << c[i * cShape.width + j] << " ";
+		}
+		std::cout << "\n";
+	}
 
 	return 0;
 }
@@ -684,38 +716,41 @@ int gemmLayer_cpu (float * a, TensorShape aShape,
 	float * c, TensorShape & cShape,
 	GemmLayerArgs & args, uint32_t batchSize) {
 	
-
     int tilesAlongW = (cShape.width + args.tileW - 1) / args.tileW;
     int tilesAlongH = (cShape.height + args.tileH - 1) / args.tileH;
     int subTilesAlongK = (aShape.width + args.tileH - 1) / args.tileH;
 
     int tileId = 0;
 
-
+	/* Checking to see if the tileId is less than the total number of tiles. */
 	while (tileId < tilesAlongW * tilesAlongH) {
-        int offsetH = (tileId / tilesAlongW) * args.tileH;
-        int offsetW = (tileId % tilesAlongW) * args.tileW;
+        int offsetH = (tileId / tilesAlongW) * args.tileH; // blockIdx.y * args.tileH
+        int offsetW = (tileId % tilesAlongW) * args.tileW; // blockIdx.x * args.tileW
+
         int rowIdx, colIdx;
         int row, col, subTile, subTileK, k;
 
         #ifdef PRINT_DEBUG
-        printf("%d thread @ tile # %d\n", threadIdx, tileId);
+		printf("%d thread @ tile # %d\n", threadIdx, tileId);
         #endif
 
-        for (subTile = 0; subTile < subTilesAlongK; ++ subTile) {
-            for (row = 0; row < args.tileH; ++ row) {
+        for (subTile = 0; subTile < subTilesAlongK; ++ subTile) { // Which tile on the Cshape am I on?
+            for (row = 0; row < args.tileH; ++ row) {    //Indexing into that subtile
                 for (col = 0; col < args.tileW; ++ col) {
-                    #ifdef PRINT_DEBUG
-                    printf("%d @ (%03d, %03d)  = %d\n", threadIdx, 
-                        row + offsetH, col + offsetW, IDX2R(row + offsetH, col + offsetW, TILE_W));
+                    
+					#ifdef PRINT_DEBUG
+					printf("%d @ (%03d, %03d)  = %d\n", threadIdx, 
+					row + offsetH, col + offsetW, IDX2R(row + offsetH, col + offsetW, TILE_W));
                     #endif
-                    rowIdx = row + offsetH;
+
+					//my coordinates on the cShape
+                    rowIdx = row + offsetH; // How I get each element of all the tiles.
                     colIdx = col + offsetW;
 
                     //  Check bounds of actual output matrix
                     if (rowIdx < cShape.height && colIdx < cShape.width) {
 						if (subTile == 0)
-                        	c[IDX2R(rowIdx, colIdx, cShape.width)] = 0;
+                        	c[IDX2R(rowIdx, colIdx, cShape.width)] = 0; //cannot understand this
                         for (subTileK = 0; subTileK < args.tileH; ++ subTileK) {
                             k = subTile * args.tileH + subTileK;
                             if (k < aShape.width) {
