@@ -457,7 +457,7 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 	oShape.height 	= (iShape.height + 2 * args.padH - fShape.height) / args.strideH + 1;
 	oShape.width	= (iShape.width  + 2 * args.padW - fShape.width)  / args.strideW + 1;
 	oShape.channels	= (fShape.count);
-	oShape.count 	= 1;				//	Might scale to batch size
+	oShape.count 	= iShape.count;				//	Might scale to batch size
 
 	printf("oShape.height: %i, oShape.width: %i, oShape.channel: %i \n", oShape.height, oShape.width, oShape.channels);
 
@@ -552,7 +552,7 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 
 	auto tStart = std::chrono::high_resolution_clock::now();
 	
-	convLayer_cpu(in, iShape, filter, fShape, bias, out, oShape, args, 1);
+	convLayer_cpu(in, iShape, filter, fShape, bias, out, oShape, args, iShape.count);
 
 	auto tEnd= std::chrono::high_resolution_clock::now();
 
