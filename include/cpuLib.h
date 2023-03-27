@@ -134,7 +134,7 @@
 	// const TensorShape AlexL1_FilterShape	= {1, 3, 11, 11};
 	// const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 4, 4, false};
 
-	const TensorShape AlexL1_InShape 		= {1, 3, 32, 32};
+	const TensorShape AlexL1_InShape 		= {2, 3, 32, 32};
 	const TensorShape AlexL1_FilterShape	= {1, 3, 2, 2};
 	const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 1, 1, false};
 
