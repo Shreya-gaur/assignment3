@@ -486,6 +486,41 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 	std::cout << "OutShape : " << oShape << " \n";
 	out = (float *) malloc (tensorSize(oShape) * sizeof(float));
 
+	if(args.padH != 0 || args.padW != 0){
+
+		TensorShape_t padShape;
+
+		padShape.count = iShape.count;
+		padShape.channels = iShape.channels;
+		padShape.height = iShape.height + 2 * args.padH;
+		padShape.width = iShape.width + 2 * args.padW;
+
+		float* paddedin = (float*) malloc(tensorSize(padShape) *  sizeof(float)); 
+		
+		for(int ch =0; ch< padShape.channels; ch++){
+			for( int i = 0; i < padShape.height; i++ ) {
+				for( int j = 0; j < padShape.width; j++ ) {
+					int paddedPixelPos = ch * padShape.height * padShape.width + i * padShape.width + j;
+
+					if( i >= args.padH && i < iShape.height + args.padH &&
+						j >= args.padW && j < iShape.width + args.padW ) {
+						int pixelPos = ch * iShape.height * iShape.width + ( i - args.padH ) * iShape.width + ( j - args.padW);
+						paddedin[paddedPixelPos] = in[pixelPos];
+					} else {
+						paddedin[paddedPixelPos] = 0.0;
+					}
+				}
+			}
+		}
+		
+		free(in);
+
+		in = paddedin;
+		iShape.width = padShape.width;
+		iShape.height = padShape.height;
+
+	}
+
 	std::cout << "Input" << "\n"; 
 
 	for(int ch = 0; ch < iShape.channels; ch++){
