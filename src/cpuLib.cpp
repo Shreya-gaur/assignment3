@@ -486,38 +486,64 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 	std::cout << "OutShape : " << oShape << " \n";
 	out = (float *) malloc (tensorSize(oShape) * sizeof(float));
 
+	if(args.padH != 0 || args.padW != 0){
+
+		TensorShape_t padShape;
+
+		padShape.count = iShape.count;
+		padShape.channels = iShape.channels;
+		padShape.height = iShape.height + 2 * args.padH;
+		padShape.width = iShape.width + 2 * args.padW;
+
+		float* paddedin = (float*) malloc(tensorSize(padShape) *  sizeof(float)); 
+		
+		for(int ch =0; ch< padShape.channels; ch++){
+			for( int i = 0; i < padShape.height; i++ ) {
+				for( int j = 0; j < padShape.width; j++ ) {
+					int paddedPixelPos = ch * padShape.height * padShape.width + i * padShape.width + j;
+
+					if( i >= args.padH && i < iShape.height + args.padH &&
+						j >= args.padW && j < iShape.width + args.padW ) {
+						int pixelPos = ch * iShape.height * iShape.width + ( i - args.padH ) * iShape.width + ( j - args.padW);
+						paddedin[paddedPixelPos] = in[pixelPos];
+					} else {
+						paddedin[paddedPixelPos] = 0.0;
+					}
+				}
+			}
+		}
+		
+		free(in);
+
+		in = paddedin;
+		iShape.width = padShape.width;
+		iShape.height = padShape.height;
+
+	}
+
 	std::cout << "Input" << "\n"; 
-
-	for(int ch = 0; ch < iShape.channels; ch++){
-
-		std::cout<< "Channel: "<< ch << "\n";
-
-		for (int i = 0; i < iShape.height; i++){
-			for(int j = 0; j < iShape.width; j++){
-
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
-				std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
-
+	for(uint32_t n = 0; n < iShape.count ; n++){
+		std::cout<< "Batch: "<< n << "\n";
+		for(int ch = 0; ch < iShape.channels; ch++){
+			std::cout<< "Channel: "<< ch << "\n";
+			for (int i = 0; i < iShape.height; i++){
+				for(int j = 0; j < iShape.width; j++){
+					std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
+				}
+				std::cout << "\n";
 			}
 			std::cout << "\n";
 		}
-		std::cout << "\n";
 	}
 
 	std::cout << "\n"; 	
-
 	std::cout << "Filter" << "\n"; 
 
 	for(int ch = 0; ch < fShape.channels; ch++){
-
 		std::cout<< "Channel: "<< ch << "\n";
-
 		for (int i = 0; i < fShape.height; i++){
 			for(int j = 0; j < fShape.width; j++){
-
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
 				std::cout << filter[ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
-
 			}
 			std::cout << "\n";
 		}
@@ -535,20 +561,18 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 	std::cout << "\n"; 	
 	std::cout << "Output" << "\n"; 
 
-	for(int ch = 0; ch < oShape.channels; ch++){
-
-		std::cout<< "Channel: "<< ch << "\n";
-
-		for (int i = 0; i < oShape.height; i++){
-			for(int j = 0; j < oShape.width; j++){
-
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
-				std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
-
+	for(uint32_t n = 0; n < iShape.count ; n++){
+		std::cout<< "Batch: "<< n << "\n";
+		for(int ch = 0; ch < oShape.channels; ch++){
+			std::cout<< "Channel: "<< ch << "\n";
+			for (int i = 0; i < oShape.height; i++){
+				for(int j = 0; j < oShape.width; j++){
+					std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
+				}
+				std::cout << "\n";
 			}
 			std::cout << "\n";
 		}
-		std::cout << "\n";
 	}
 
 	std::cout << "\n"; 	
@@ -563,11 +587,9 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 int convLayer_cpu( float * input, TensorShape iShape, 
 	float * filter, TensorShape fShape, 
 	float * bias, float * output, TensorShape & oShape, 
-	ConvLayerArgs & args, uint32_t batchSize = 1) {
+	ConvLayerArgs & args, uint32_t batchSize) {
 
 	//	Convolution in CPU
-
-	// printf("oShape.height: %i, oShape.width: %i, oShape.channel: %i \n", oShape.height, oShape.width, oShape.channels);
 
 	for (uint32_t n = 0; n < batchSize; ++ n) {
 		for (uint32_t m = 0; m < oShape.channels; ++ m) {
@@ -579,8 +601,6 @@ int convLayer_cpu( float * input, TensorShape iShape,
 					// O[n][m][x][y] = B[m];
 
 					output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y] = bias[m];
-
-					// printf("initiliazing output[%i][%i][%i][%i] as %f \n", n, m, x, y, output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y]);
 
 					for (uint32_t i = 0; i < fShape.height; ++ i) {
 						for (uint32_t j = 0; j < fShape.width; ++ j) {
@@ -595,11 +615,7 @@ int convLayer_cpu( float * input, TensorShape iShape,
 								uint32_t input_col = (args.strideW * y) + j;
 
 								float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
-
-								// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
-
 								float filter_element = filter[m * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
-
 								output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y] += input_element * filter_element;
 							}
 						}

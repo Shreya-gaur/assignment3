@@ -136,7 +136,7 @@
 
 	const TensorShape AlexL1_InShape 		= {1, 3, 32, 32};
 	const TensorShape AlexL1_FilterShape	= {1, 3, 2, 2};
-	const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 2, 2, false};
+	const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 1, 1, false};
 
 	extern int runCpuConv (int argc, char ** argv);
 

@@ -196,13 +196,12 @@
 
 	extern int runGpuGemm (int argc, char ** argv);
 
-	extern int gemmLayer_gpu (float * a, TensorShape aShape, 
+	extern int evaluateGpuGemm (TensorShape aShape, TensorShape bShape, 
+		TensorShape & cShape, GemmLayerArgs args);
+	
+	extern __global__ void gemmLayer_gpu (float * a, TensorShape aShape, 
 		float * b, TensorShape bShape,
-		float * c, TensorShape & cShape,
-		GemmLayerArgs & args, uint32_t batchSize);
-
-	extern int runGpuGemm (int argc, char ** argv);
-
-	extern int evaluateGpuGemm ();
+		float * c, TensorShape cShape,
+		GemmLayerArgs args, uint32_t batchSize);
 
 #endif
