@@ -387,7 +387,7 @@ int makeTensor (float ** t, TensorShape & shape) {
 		shape.count = 1;
 	}
 
-	uint64_t tensorSize = shape.height * shape.width * shape.channels;
+	uint64_t tensorSize = shape.count * shape.height * shape.width * shape.channels;
 	*t = (float *) malloc (tensorSize * sizeof(float));
 
 	if (*t == nullptr) {
@@ -406,7 +406,7 @@ int makeTensor (float ** t, TensorShape & shape) {
 		for (uint32_t chIdx = 0; chIdx < shape.channels; ++ chIdx ) {
 			for (uint32_t rowIdx = 0; rowIdx < shape.height; ++ rowIdx) {
 				for (uint32_t colIdx = 0; colIdx < shape.width; ++ colIdx) {
-					offset = chIdx * shape.height * shape.width + rowIdx * shape.width + colIdx;
+					offset = count * shape.channels * shape.height * shape.width + chIdx * shape.height * shape.width + rowIdx * shape.width + colIdx;
 					m[offset] = dist(random_device);
 				}
 			}
@@ -521,42 +521,37 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 
 	}
 
-	std::cout << "Input" << "\n"; 
-
-	for(int ch = 0; ch < iShape.channels; ch++){
-
-		std::cout<< "Channel: "<< ch << "\n";
-
-		for (int i = 0; i < iShape.height; i++){
-			for(int j = 0; j < iShape.width; j++){
-
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
-				std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
-
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
+	// std::cout << "Input" << "\n"; 
+	
+	// for(n = 0; n < iShape.count; n++){
+	// 	std::cout<< "Batch: "<< n << "\n";
+	// 	for(uint32_t ch = 0; ch < iShape.channels; ch++){
+	// 		std::cout<< "Channel: "<< ch << "\n";
+	// 		for (uint32_t i = 0; i < iShape.height; i++){
+	// 			for(uint32_t j = 0; j < iShape.width; j++){
+	// 				std::cout << in[n*iShape.channels * iShape.width * iShape.height + ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
+	// 			}
+	// 			std::cout << "\n";
+	// 		}
+	// 		std::cout << "\n";
+	// 	}
+	// }
 
 	std::cout << "\n"; 	
-
 	std::cout << "Filter" << "\n"; 
 
-	for(int ch = 0; ch < fShape.channels; ch++){
-
-		std::cout<< "Channel: "<< ch << "\n";
-
-		for (int i = 0; i < fShape.height; i++){
-			for(int j = 0; j < fShape.width; j++){
-
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
-				std::cout << filter[ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
-
+	for(uint32_t n = 0; n < fShape.count; n++){
+		std::cout<< "Batch: "<< n << "\n";
+		for(uint32_t ch = 0; ch < fShape.channels; ch++){
+			std::cout<< "Channel: "<< ch << "\n";
+			for (uint32_t i = 0; i < fShape.height; i++){
+				for(uint32_t j = 0; j < fShape.width; j++){
+					std::cout << filter[n * fShape.channels * fShape.height * fShape.width + ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
+				}
+				std::cout << "\n";
 			}
 			std::cout << "\n";
 		}
-		std::cout << "\n";
 	}
 
 	auto tStart = std::chrono::high_resolution_clock::now();
@@ -571,15 +566,10 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 	std::cout << "Output" << "\n"; 
 
 	for(int ch = 0; ch < oShape.channels; ch++){
-
 		std::cout<< "Channel: "<< ch << "\n";
-
 		for (int i = 0; i < oShape.height; i++){
 			for(int j = 0; j < oShape.width; j++){
-
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
 				std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
-
 			}
 			std::cout << "\n";
 		}
@@ -615,11 +605,11 @@ int convLayer_cpu( float * input, TensorShape iShape,
 
 					output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y] = bias[m];
 
-					// printf("initiliazing output[%i][%i][%i][%i] as %f \n", n, m, x, y, output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y]);
+					// if(m==1) printf("initiliazing output[%i][%i][%i][%i] as %f \n", n, m, x, y, output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y]);
 
-					for (uint32_t i = 0; i < fShape.height; ++ i) {
-						for (uint32_t j = 0; j < fShape.width; ++ j) {
-							for (uint32_t k = 0; k < fShape.channels; ++ k) {
+					for (uint32_t k = 0; k < fShape.channels; ++ k) {
+						for (uint32_t i = 0; i < fShape.height; ++ i) {
+							for (uint32_t j = 0; j < fShape.width; ++ j) {
 
 								//	STUDENT: Calculate
 								//	O[n][m][x][y] += 
@@ -630,10 +620,8 @@ int convLayer_cpu( float * input, TensorShape iShape,
 								uint32_t input_col = (args.strideW * y) + j;
 
 								float input_element = input[n * iShape.channels * iShape.height * iShape.width + k * iShape.height * iShape.width + input_row * iShape.width + input_col];
-
-								// printf("input[%i][%i][%i][%i] is %f \n", n, k, input_row, input_col, input_element);
-
 								float filter_element = filter[m * fShape.channels * fShape.height * fShape.width + k * fShape.height * fShape.width + i * fShape.width + j];
+								// if(m==1) printf("input[%i][%i][%i][%i] * filter[%i][%i][%i][%i] : %f * %f \n", n, k, input_row, input_col, m, k, i, j, input_element, filter_element);
 
 								output[n * oShape.channels * oShape.height * oShape.width + m * oShape.height * oShape.width + x * oShape.width + y] += input_element * filter_element;
 							}
