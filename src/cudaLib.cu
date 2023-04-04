@@ -2,7 +2,7 @@
 #include "cudaLib.cuh"
 
 #define BLOCK_SIZE 16
-
+__device__ __constant__ float bias_d[512];
 
 void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
@@ -118,7 +118,8 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 
 	//	STUDENT: Add code here --> Added
 
-	float *input_d, *output_d, *bias_d, *filter_d;
+	// float *input_d, *output_d, *bias_d, *filter_d;
+	float *input_d, *output_d, *filter_d;
 
 	if (iShape.channels == 0) iShape.channels = 1;
 
@@ -203,11 +204,11 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 		return -1;
 	}
 
-	if(cudaMalloc(&bias_d,  oShape.channels * sizeof(float))!=cudaSuccess){
-		std::cout<< "Size Requested: "<< oShape.channels * sizeof(float);
-		std::cout<< "\n ERROR ERROR!!!!! RUN FOR THE HILLS!!!!! BIAS MEMORY ALLOCATION FAILURE \n";
-		return -1;
-	}
+	// if(cudaMalloc(&bias_d,  oShape.channels * sizeof(float))!=cudaSuccess){
+	// 	std::cout<< "Size Requested: "<< oShape.channels * sizeof(float);
+	// 	std::cout<< "\n ERROR ERROR!!!!! RUN FOR THE HILLS!!!!! BIAS MEMORY ALLOCATION FAILURE \n";
+	// 	return -1;
+	// }
 
 	std::cout << "OutShape : " << oShape << " \n";
 	out = (float *) malloc (tensorSize(oShape) * sizeof(float));
@@ -262,7 +263,8 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 
 	cudaMemcpy(input_d, in, tensorSize(iShape) * sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(filter_d, filter, tensorSize(fShape) * sizeof(float), cudaMemcpyHostToDevice);
-	cudaMemcpy(bias_d, bias, oShape.channels * sizeof(float), cudaMemcpyHostToDevice);
+	// cudaMemcpy(bias_d, bias, oShape.channels * sizeof(float), cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(bias_d, bias, oShape.channels * sizeof(float), 0, cudaMemcpyHostToDevice);
 
 	int tileW = BLOCK_SIZE + (fShape.width -  args.strideW);
 	int tileH = BLOCK_SIZE + (fShape.height - args.strideH);
@@ -352,7 +354,7 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 
 	cudaFree(input_d);
 	cudaFree(filter_d);
-	cudaFree(bias_d);
+	// cudaFree(bias_d);
 	cudaFree(output_d);
 
 	return errorCount;
@@ -400,7 +402,6 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 					uint32_t iPixelPos = n * iShape.channels * iShape.width * iShape.height + ch * iShape.width * iShape.height + iPixelPosRow * iShape.width + iPixelPosCol;
 					shrinput[tilePixelPos] = input[iPixelPos];
 					// printf("Loaded element (%i, %i, %i) in shrinput (%i, %i, %i) for block (%i, %i) by thread (%i, %i): %f\n", ch, iPixelPosRow, iPixelPosCol, ch, tilePixelPosRow, tilePixelPosCol, blockIdx.y, blockIdx.x, threadIdx.y, threadIdx.x, shrinput[tilePixelPos]);
-				
 				}
 			
 			}
@@ -410,40 +411,40 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 	__syncthreads();
 
     tilePixelPosCol = threadIdx.x;
-    iPixelPosCol = tileStartCol + tilePixelPosCol;
+    iPixelPosCol = tileStartCol + tilePixelPosCol * args.strideW;
 
 	for(uint32_t n = 0; n < batchSize; n++){
 		for(uint32_t m = 0; m < oShape.channels; m++){
-			for(uint32_t ch = 0; ch < iShape.channels; ch++){
-				for(uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
+			for(uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
 
-					uint32_t tilePixelPosRow = subBlockNo * blockDim.y + threadIdx.y;
-					uint32_t iPixelPosRow = tileStartRow + tilePixelPosRow;
+				uint32_t tilePixelPosRow = subBlockNo * blockDim.y + threadIdx.y;
+				uint32_t iPixelPosRow = tileStartRow + tilePixelPosRow * args.strideH;
 
-					if( iPixelPosCol >= tileStartCol && iPixelPosCol < tileEndClampedCol - (fShape.width - args.strideW) &&
-						iPixelPosRow >= tileStartRow && iPixelPosRow < tileEndClampedRow - (fShape.height - args.strideH) ) {
-						
-						uint32_t oPixelPosCol = iPixelPosCol;
-						uint32_t oPixelPosRow = iPixelPosRow;
-						uint32_t oPixelPos = n * oShape.channels * oShape.width * oShape.height + m * oShape.height * oShape.width + oPixelPosRow * oShape.width + oPixelPosCol;
-						uint32_t tilePixelPos = tilePixelPosRow * args.strideH * tileW + tilePixelPosCol * args.strideW;
+				if( iPixelPosCol >= tileStartCol && iPixelPosCol < tileEndClampedCol - (fShape.width - args.strideW) &&
+					iPixelPosRow >= tileStartRow && iPixelPosRow < tileEndClampedRow - (fShape.height - args.strideH) ) {
+					
+					uint32_t oPixelPosCol = iPixelPosCol / args.strideW;
+					uint32_t oPixelPosRow = iPixelPosRow / args.strideH;
+					uint32_t oPixelPos = n * oShape.channels * oShape.width * oShape.height + m * oShape.height * oShape.width + oPixelPosRow * oShape.width + oPixelPosCol;
+					uint32_t tilePixelPos = (tilePixelPosRow * args.strideH) * tileW + (tilePixelPosCol * args.strideW);
 
-						float conv_op = bias[m];
+					float conv_op = bias_d[m];
 
-						for( uint32_t i = 0; i < fShape.height; i++ ) {
-							for( uint32_t j = 0; j < fShape.width; j++ ) {
-								for (uint32_t k = 0; k < fShape.channels; k++){
-									int tilePixelPosOffset = i * tileW + j;
-									int coefPos = m * fShape.channels * fShape.width * fShape.height + k * fShape.width * fShape.height + i * fShape.width + j;
-									// printf("Loaded element shrinput (%i, %i, %i) and filter (%i, %i, %i, %i) for block (%i, %i) by thread (%i, %i): %f\n", k, tilePixelPosRow, tilePixelPosCol, m, k, i, j, blockIdx.y, blockIdx.x, threadIdx.y, threadIdx.x, shrinput[k * tileW * tileH + tilePixelPos]);
-									conv_op += shrinput[n * iShape.channels * tileW * tileH + k * tileW * tileH + tilePixelPos + tilePixelPosOffset] * filter[coefPos];
-								}
-							}
+					for( uint32_t i = 0; i < fShape.height; i++ ) {
+						for( uint32_t j = 0; j < fShape.width; j++ ) {
+							for (uint32_t k = 0; k < fShape.channels; k++){
+								int tilePixelPosOffset = i * tileW + j;
+								int coefPos = m * fShape.channels * fShape.width * fShape.height + k * fShape.width * fShape.height + i * fShape.width + j;
+								int input_idx = n * iShape.channels * tileW * tileH + k * tileW * tileH + tilePixelPos + tilePixelPosOffset;
+								conv_op += shrinput[input_idx] * filter[coefPos];
+							}	
 						}
-
-						output[oPixelPos] = conv_op;
-						// printf("Output Element (%i, %i, %i): %f\n", m, iPixelPosRow, iPixelPosCol, output[oPixelPos]);
 					}
+
+					// if(oPixelPos < oShape.channels * oShape.width * oShape.height){
+					output[oPixelPos] = conv_op;
+					// } 
+					// printf("Output Element (%i, %i, %i): %f\n", m, iPixelPosRow, iPixelPosCol, output[oPixelPos]);
 				}
 			}
 		}
