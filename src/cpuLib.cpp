@@ -387,7 +387,7 @@ int makeTensor (float ** t, TensorShape & shape) {
 		shape.count = 1;
 	}
 
-	uint64_t tensorSize = shape.height * shape.width * shape.channels;
+	uint64_t tensorSize = shape.count * shape.height * shape.width * shape.channels;
 	*t = (float *) malloc (tensorSize * sizeof(float));
 
 	if (*t == nullptr) {
@@ -406,7 +406,7 @@ int makeTensor (float ** t, TensorShape & shape) {
 		for (uint32_t chIdx = 0; chIdx < shape.channels; ++ chIdx ) {
 			for (uint32_t rowIdx = 0; rowIdx < shape.height; ++ rowIdx) {
 				for (uint32_t colIdx = 0; colIdx < shape.width; ++ colIdx) {
-					offset = chIdx * shape.height * shape.width + rowIdx * shape.width + colIdx;
+					offset = count * shape.channels * shape.height * shape.width + chIdx * shape.height * shape.width + rowIdx * shape.width + colIdx;
 					m[offset] = dist(random_device);
 				}
 			}

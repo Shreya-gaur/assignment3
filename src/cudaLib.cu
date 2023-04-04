@@ -441,10 +441,7 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 						}
 					}
 
-					// if(oPixelPos < oShape.channels * oShape.width * oShape.height){
 					output[oPixelPos] = conv_op;
-					// } 
-					// printf("Output Element (%i, %i, %i): %f\n", m, iPixelPosRow, iPixelPosCol, output[oPixelPos]);
 				}
 			}
 		}
