@@ -194,6 +194,8 @@
 		float * bias, float * output, TensorShape oShape, //removed & after TensorShape 
 		ConvLayerArgs args, uint32_t batchSize);
 
+	extern __global__ void bias_Add (float * bias, float * output, TensorShape oShape);
+
 	extern int runGpuGemm (int argc, char ** argv);
 
 	extern int evaluateGpuGemm (TensorShape aShape, TensorShape bShape, 
