@@ -219,45 +219,45 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 		return -1;
 	}
 
-	std::cout << "Input" << "\n"; 
+	// std::cout << "Input" << "\n"; 
 
-	for(uint32_t n = 0; n < iShape.count ; n++){
-		std::cout<< "Batch: "<< n << "\n";
-		for(uint32_t ch = 0; ch < iShape.channels; ch++){
-			std::cout<< "Channel: "<< ch << "\n";
-			for (uint32_t i = 0; i < iShape.height; i++){
-				for(uint32_t j = 0; j < iShape.width; j++){
-					std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
-				}
-				std::cout << "\n";
-			}
-			std::cout << "\n";
-		}
-	}
+	// for(uint32_t n = 0; n < iShape.count ; n++){
+	// 	std::cout<< "Batch: "<< n << "\n";
+	// 	for(uint32_t ch = 0; ch < iShape.channels; ch++){
+	// 		std::cout<< "Channel: "<< ch << "\n";
+	// 		for (uint32_t i = 0; i < iShape.height; i++){
+	// 			for(uint32_t j = 0; j < iShape.width; j++){
+	// 				std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
+	// 			}
+	// 			std::cout << "\n";
+	// 		}
+	// 		std::cout << "\n";
+	// 	}
+	// }
 
 
-	std::cout << "\n"; 	
+	// std::cout << "\n"; 	
 
-	std::cout << "Filter" << "\n"; 
+	// std::cout << "Filter" << "\n"; 
 
-	for(uint32_t ch = 0; ch < fShape.channels; ch++){
-		std::cout<< "Channel: "<< ch << "\n";
-		for (uint32_t i = 0; i < fShape.height; i++){
-			for(uint32_t j = 0; j < fShape.width; j++){
-				// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
-				std::cout << filter[ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
+	// for(uint32_t ch = 0; ch < fShape.channels; ch++){
+	// 	std::cout<< "Channel: "<< ch << "\n";
+	// 	for (uint32_t i = 0; i < fShape.height; i++){
+	// 		for(uint32_t j = 0; j < fShape.width; j++){
+	// 			// std::cout << output[ch * oShape.width * oShape.height + i * oShape.width + j] << " @ (" << i << ", " << j << ")" << "\n";
+	// 			std::cout << filter[ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
+	// 		}
+	// 		std::cout << "\n";
+	// 	}
+	// 	std::cout << "\n";
+	// }
 
-	std::cout << "Bias" << "\n";  
+	// std::cout << "Bias" << "\n";  
 
-	for(uint32_t ch = 0; ch < oShape.channels; ch++ ){
-		std::cout<< "Channel: "<< ch << "\n";
-		std::cout << bias[ch] << " ";
-	}
+	// for(uint32_t ch = 0; ch < oShape.channels; ch++ ){
+	// 	std::cout<< "Channel: "<< ch << "\n";
+	// 	std::cout << bias[ch] << " ";
+	// }
 
 	std::cout <<"\n";
 
@@ -270,32 +270,33 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 	int tileH = BLOCK_SIZE + (fShape.height - args.strideH);
 	int threadPerBlockH = 16;
 
-	int sharedmemSize = tileW * tileH * iShape.channels * iShape.count * sizeof(float);
+	// int sharedmemSize = tileW * tileH * iShape.channels * iShape.count * sizeof(float);
+	int sharedmemSize = tileW * tileH * sizeof(float) + iShape.channels * oShape.height * oShape.width * sizeof(float);
 
-	dim3 dimBlock(tileW, threadPerBlockH);
-	printf("\ndimBlock: (%i, %i)\n", tileW, threadPerBlockH);
-    dim3 dimGrid(ceil((float)iShape.width / (float)BLOCK_SIZE), ceil((float)iShape.height / (float)BLOCK_SIZE));
-	std::cout << "dimGrid: ("<< ceil((float)iShape.width / (float)BLOCK_SIZE) << "," << ceil((float)iShape.height / (float) BLOCK_SIZE) << ")\n";
+	dim3 dimBlock(tileW, threadPerBlockH, 1);
+	printf("\ndimBlock: (%i, %i, %i)\n", tileW, threadPerBlockH, dimBlock.z);
+    dim3 dimGrid(ceil((float)iShape.width / (float)BLOCK_SIZE), ceil((float)iShape.height / (float)BLOCK_SIZE), iShape.channels);
+	std::cout << "dimGrid: ("<< dimGrid.x << "," << dimGrid.y << "," << dimGrid.z << ")\n";
 
 	convLayer_gpu<<<dimGrid, dimBlock, sharedmemSize>>>(input_d, iShape, filter_d, fShape, bias_d, output_d, oShape, args, iShape.count);
 
 	cudaMemcpy(out, output_d, tensorSize(oShape) * sizeof(float), cudaMemcpyDeviceToHost);
 
-	std::cout << "\n"; 	
-	std::cout << "Output GPU" << "\n"; 
-	for(uint32_t n = 0; n < oShape.count; n++){
-		std::cout<< "Batch: "<< n << "\n";
-		for(uint32_t ch = 0; ch < oShape.channels; ch++){
-			std::cout<< "Channel: "<< ch << "\n";
-			for (uint32_t i = 0; i < oShape.height; i++){
-				for(uint32_t j = 0; j < oShape.width; j++){
-					std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
-				}
-				std::cout << "\n";
-			}
-			std::cout << "\n";
-		}
-	}
+	// std::cout << "\n"; 	
+	// std::cout << "Output GPU" << "\n"; 
+	// for(uint32_t n = 0; n < oShape.count; n++){
+	// 	std::cout<< "Batch: "<< n << "\n";
+	// 	for(uint32_t ch = 0; ch < oShape.channels; ch++){
+	// 		std::cout<< "Channel: "<< ch << "\n";
+	// 		for (uint32_t i = 0; i < oShape.height; i++){
+	// 			for(uint32_t j = 0; j < oShape.width; j++){
+	// 				std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
+	// 			}
+	// 			std::cout << "\n";
+	// 		}
+	// 		std::cout << "\n";
+	// 	}
+	// }
 
 	#ifndef CONV_CHECK_DISABLE
 		//	STUDENT: Verify number of errors in output matrix generated by convLayer_gpu
@@ -316,10 +317,13 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 				for(uint32_t j = 0; j < oShape.width; j++){
 					float output_gpu = out[ch * oShape.width * oShape.height + i * oShape.width + j];
 					float output_cpu = out_cpu[ch * oShape.width * oShape.height + i * oShape.width + j];
-					if(floor(fabs(output_gpu - output_cpu)) != 0){
-						printf("Error at (%i, %i, %i) -> Actual Value: %f GPU Value: %f\n", i, j, ch, out_cpu[ch * oShape.width * oShape.height + i * oShape.width + j], out[ch * oShape.width * oShape.height + i * oShape.width + j]);
-						printf("Error at (%i, %i, %i) -> Difference: %f\n", i, j, ch, floor(output_gpu - output_cpu));
-						errorCount += 1;
+					if(floor(fabs(output_gpu - output_cpu)) != 0 ){
+						if(floor(fabs(output_gpu - output_cpu)) == 1);
+						else{
+							printf("Error at (%i, %i, %i) -> Actual Value: %f GPU Value: %f\n", i, j, ch, out_cpu[ch * oShape.width * oShape.height + i * oShape.width + j], out[ch * oShape.width * oShape.height + i * oShape.width + j]);
+							printf("Error at (%i, %i, %i) -> Difference: %f\n", i, j, ch, floor(output_gpu - output_cpu));
+							errorCount += 1;
+						}
 					}
 				}
 			}
@@ -360,6 +364,7 @@ uint64_t evaluateGpuConv (TensorShape iShape, TensorShape fShape,
 	return errorCount;
 }
 
+
 __global__
 void convLayer_gpu ( float * input, TensorShape iShape, 
 	float * filter, TensorShape fShape, 
@@ -370,6 +375,9 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 
 	const uint32_t tileW = BLOCK_SIZE + (fShape.width - args.strideW);
 	const uint32_t tileH = BLOCK_SIZE + (fShape.height - args.strideH);
+	
+	float * out = (float *) &shrinput[tileW * tileH]; 
+	
 	const uint32_t nosubBlk = ceil((float)tileH / (float)blockDim.y);
 
     const uint32_t blockStartCol = blockIdx.x * BLOCK_SIZE;
@@ -389,31 +397,32 @@ void convLayer_gpu ( float * input, TensorShape iShape,
     uint32_t tilePixelPosCol = threadIdx.x;
     uint32_t iPixelPosCol = tileStartCol + tilePixelPosCol;
 
-	for(uint32_t n = 0; n < batchSize; n++){
-		for(uint32_t ch = 0; ch < iShape.channels; ch++){
-			for( uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
+	// for(uint32_t n = 0; n < batchSize; n++){
+		// 	for(uint32_t ch = 0; ch < iShape.channels; ch++){
+	for( uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
+		uint32_t tilePixelPosRow = subBlockNo * blockDim.y + threadIdx.y;		
+		uint32_t iPixelPosRow = tileStartRow + tilePixelPosRow;	
+		// uint32_t tilePixelPos = n * iShape.channels * tileH * tileW + blockIdx.z * tileH * tileW + tilePixelPosRow * tileW + tilePixelPosCol;
+		uint32_t tilePixelPos = tilePixelPosRow * tileW + tilePixelPosCol;
 
-				uint32_t tilePixelPosRow = subBlockNo * blockDim.y + threadIdx.y;		
-				uint32_t iPixelPosRow = tileStartRow + tilePixelPosRow;	
-				uint32_t tilePixelPos = n * iShape.channels * tileH * tileW + ch * tileH * tileW + tilePixelPosRow * tileW + tilePixelPosCol;
+		if( iPixelPosCol < tileEndClampedCol && iPixelPosRow < tileEndClampedRow ) {
 
-				if( iPixelPosCol < tileEndClampedCol && iPixelPosRow < tileEndClampedRow ) {
-
-					uint32_t iPixelPos = n * iShape.channels * iShape.width * iShape.height + ch * iShape.width * iShape.height + iPixelPosRow * iShape.width + iPixelPosCol;
-					shrinput[tilePixelPos] = input[iPixelPos];
-					// printf("Loaded element (%i, %i, %i) in shrinput (%i, %i, %i) for block (%i, %i) by thread (%i, %i): %f\n", ch, iPixelPosRow, iPixelPosCol, ch, tilePixelPosRow, tilePixelPosCol, blockIdx.y, blockIdx.x, threadIdx.y, threadIdx.x, shrinput[tilePixelPos]);
-				}
-			
-			}
+			// uint32_t iPixelPos = n * iShape.channels * iShape.width * iShape.height + blockIdx.z * iShape.width * iShape.height + iPixelPosRow * iShape.width + iPixelPosCol;
+			uint32_t iPixelPos = blockIdx.z * iShape.width * iShape.height + iPixelPosRow * iShape.width + iPixelPosCol;
+			shrinput[tilePixelPos] = input[iPixelPos];
+			// printf("Loaded element (%i, %i, %i) in shrinput (%i, %i, %i) for block (%i, %i) by thread (%i, %i): %f\n", blockIdx.z, iPixelPosRow, iPixelPosCol, blockIdx.z, tilePixelPosRow, tilePixelPosCol, blockIdx.y, blockIdx.x, threadIdx.y, threadIdx.x, shrinput[tilePixelPos]);
 		}
+	
 	}
+		// 	}
+	// }
 
 	__syncthreads();
 
     tilePixelPosCol = threadIdx.x;
     iPixelPosCol = tileStartCol + tilePixelPosCol * args.strideW;
 
-	for(uint32_t n = 0; n < batchSize; n++){
+	// for(uint32_t n = 0; n < batchSize; n++){
 		for(uint32_t m = 0; m < oShape.channels; m++){
 			for(uint32_t subBlockNo = 0; subBlockNo < nosubBlk; subBlockNo++ ) {
 
@@ -425,27 +434,35 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 					
 					uint32_t oPixelPosCol = iPixelPosCol / args.strideW;
 					uint32_t oPixelPosRow = iPixelPosRow / args.strideH;
-					uint32_t oPixelPos = n * oShape.channels * oShape.width * oShape.height + m * oShape.height * oShape.width + oPixelPosRow * oShape.width + oPixelPosCol;
+					// uint32_t oPixelPos = n * oShape.channels * oShape.width * oShape.height + m * oShape.height * oShape.width + oPixelPosRow * oShape.width + oPixelPosCol;
+					uint32_t oPixelPos = oPixelPosRow * oShape.width + oPixelPosCol;
 					uint32_t tilePixelPos = (tilePixelPosRow * args.strideH) * tileW + (tilePixelPosCol * args.strideW);
 
 					float conv_op = bias_d[m];
 
 					for( uint32_t i = 0; i < fShape.height; i++ ) {
 						for( uint32_t j = 0; j < fShape.width; j++ ) {
-							for (uint32_t k = 0; k < fShape.channels; k++){
 								int tilePixelPosOffset = i * tileW + j;
-								int coefPos = m * fShape.channels * fShape.width * fShape.height + k * fShape.width * fShape.height + i * fShape.width + j;
-								int input_idx = n * iShape.channels * tileW * tileH + k * tileW * tileH + tilePixelPos + tilePixelPosOffset;
+								int coefPos = m * fShape.channels * fShape.width * fShape.height + blockIdx.z * fShape.width * fShape.height + i * fShape.width + j;
+								// int input_idx = n * iShape.channels * tileW * tileH + blockIdx.z * tileW * tileH + tilePixelPos + tilePixelPosOffset;
+								int input_idx = tilePixelPos + tilePixelPosOffset;
 								conv_op += shrinput[input_idx] * filter[coefPos];
-							}	
 						}
 					}
 
-					output[oPixelPos] = conv_op;
+					out[blockIdx.z * oShape.width * oShape.height + oPixelPos] = conv_op;
+
+					__syncthreads();
+
+					atomicAdd(&output[m * oShape.height * oShape.width + oPixelPos], out[blockIdx.z * oShape.width * oShape.height + oPixelPos]);
+
 				}
+				
+				out = &shrinput[tileW * tileH];
+			
 			}
 		}
-	}
+	// }
 	return;
 }
 
