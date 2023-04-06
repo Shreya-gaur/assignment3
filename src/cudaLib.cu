@@ -462,12 +462,12 @@ void convLayer_gpu ( float * input, TensorShape iShape,
 
 int runGpuGemm (int argc, char ** argv) {
 
-	TensorShape aShape = {1, 1, 4096, 4096};
+	TensorShape aShape = {1, 1, 1, 4096};
 	TensorShape bShape = {1, 1, 4096, 4096};
 	TensorShape cShape;
 	GemmLayerArgs args = {2, 2, 1};
 
-	// evaluateGpuGemm();
+	evaluateGpuGemm(aShape, bShape, cShape, args);
 
 	return 0;
 }
