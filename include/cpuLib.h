@@ -125,7 +125,6 @@
 	extern int makeTensor (float ** t, TensorShape & shape);
 	extern int makeVector (float ** v, uint64_t size);
 
-
 	// const TensorShape AlexL1_InShape 		= {1, 3, 227, 227};
 	// const TensorShape AlexL1_FilterShape	= {96, 3, 11, 11};
 	// const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 4, 4, false};
@@ -142,6 +141,7 @@
 	// const TensorShape AlexL1_FilterShape	= {384, 384, 3, 3};
 	// const ConvLayerArgs AlexL1_ConvArgs 	= {1, 1, 1, 1, false};
 
+<<<<<<< HEAD
     const TensorShape AlexL1_InShape 		= {1, 384, 13, 13};
 	const TensorShape AlexL1_FilterShape	= {256, 384, 3, 3};
 	const ConvLayerArgs AlexL1_ConvArgs 	= {1, 1, 1, 1, false};
@@ -149,6 +149,15 @@
 	// const TensorShape AlexL1_InShape 		= {1, 3, 32, 32};
 	// const TensorShape AlexL1_FilterShape	= {1, 3, 2, 2};
 	// const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 2, 2, false};
+=======
+    // const TensorShape AlexL1_InShape 		= {1, 384, 13, 13};
+	// const TensorShape AlexL1_FilterShape	= {256, 384, 3, 3};
+	// const ConvLayerArgs AlexL1_ConvArgs 	= {1, 1, 1, 1, false};
+
+	const TensorShape AlexL1_InShape 		= {1, 3, 32, 32};
+	const TensorShape AlexL1_FilterShape	= {96, 3, 2, 2};
+	const ConvLayerArgs AlexL1_ConvArgs 	= {0, 0, 2, 2, false};
+>>>>>>> shrmem
 
 	extern int runCpuConv (int argc, char ** argv);
 
