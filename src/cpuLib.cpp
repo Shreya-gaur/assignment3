@@ -521,33 +521,6 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 
 	}
 
-	std::cout << "Input" << "\n"; 
-	for(uint32_t n = 0; n < iShape.count ; n++){
-		std::cout<< "Batch: "<< n << "\n";
-		for(int ch = 0; ch < iShape.channels; ch++){
-			std::cout<< "Channel: "<< ch << "\n";
-			for (int i = 0; i < iShape.height; i++){
-				for(int j = 0; j < iShape.width; j++){
-					std::cout << in[ch * iShape.width * iShape.height + i * iShape.width + j] << " ";
-				}
-				std::cout << "\n";
-			}
-		}
-	}
-
-	std::cout << "\n"; 	
-	std::cout << "Filter" << "\n"; 
-
-	for(int ch = 0; ch < fShape.channels; ch++){
-		std::cout<< "Channel: "<< ch << "\n";
-		for (int i = 0; i < fShape.height; i++){
-			for(int j = 0; j < fShape.width; j++){
-				std::cout << filter[ch * fShape.width * fShape.height + i * fShape.width + j] << " ";
-			}
-			std::cout << "\n";
-		}
-	}
-
 	auto tStart = std::chrono::high_resolution_clock::now();
 	
 	convLayer_cpu(in, iShape, filter, fShape, bias, out, oShape, args, iShape.count);
@@ -555,23 +528,6 @@ int executeCpuConv (TensorShape iShape, TensorShape fShape,
 	auto tEnd= std::chrono::high_resolution_clock::now();
 
 	std::chrono::duration<double> time_span = (tEnd- tStart);
-
-	std::cout << "\n"; 	
-	std::cout << "Output" << "\n"; 
-
-	for(uint32_t n = 0; n < iShape.count ; n++){
-		std::cout<< "Batch: "<< n << "\n";
-		for(int ch = 0; ch < oShape.channels; ch++){
-			std::cout<< "Channel: "<< ch << "\n";
-			for (int i = 0; i < oShape.height; i++){
-				for(int j = 0; j < oShape.width; j++){
-					std::cout << out[ch * oShape.width * oShape.height + i * oShape.width + j] << " ";
-				}
-				std::cout << "\n";
-			}
-			std::cout << "\n";
-		}
-	}
 
 	std::cout << "\n"; 	
 	std::cout << "It took " << time_span.count() << " seconds on CPU.";
@@ -654,8 +610,6 @@ void matMulNaiveCpu (int N, int *a, int *b, int *c) {
 
 int runCpuGemm (int argc, char ** argv) {
 
-	printf("\nEntered runCpuGemm \n");
-
 	TensorShape aShape = {1, 1, 6, 4};
 	TensorShape bShape = {1, 1, 4, 8};
 	TensorShape cShape;
@@ -667,8 +621,6 @@ int runCpuGemm (int argc, char ** argv) {
 
 int executeCpuGemm (TensorShape aShape, TensorShape bShape, 
 	TensorShape & cShape, GemmLayerArgs args) {
-
-	// printf("\nEntered executeCpuGemm \n");
 
 	if (aShape.width != bShape.height || aShape.channels != bShape.channels 
 		|| aShape.count != bShape.count) {
@@ -687,39 +639,9 @@ int executeCpuGemm (TensorShape aShape, TensorShape bShape,
 	makeTensor(& a, aShape);
 	makeTensor(& b, bShape);
 
-	std::cout << "\n";
-	std::cout << "Input a" <<"\n";
-
-	for (uint32_t i = 0; i < aShape.height; i++){
-		for(uint32_t j = 0; j < aShape.width; j++){
-			std::cout << a[i * aShape.width + j] << " ";
-		}
-		std::cout << "\n";
-	}
-
-	std::cout << "\n";
-	std::cout << "Input b" <<"\n";
-
-	for (uint32_t i = 0; i < bShape.height; i++){
-		for(uint32_t j = 0; j < bShape.width; j++){
-			std::cout << b[i * bShape.width + j] << " ";
-		}
-		std::cout << "\n";
-	}	
-
 	float * c = (float *) malloc(tensorSize(cShape) * sizeof(float));
 
 	gemmLayer_cpu (a, aShape, b, bShape, c, cShape, args, 1);
-
-	std::cout << "\n";
-	std::cout << "Output" <<"\n";
-
-	for (uint32_t i = 0; i < cShape.height; i++){
-		for(uint32_t j = 0; j < cShape.width; j++){
-			std::cout << c[i * cShape.width + j] << " ";
-		}
-		std::cout << "\n";
-	}
 
 	return 0;
 }

@@ -73,23 +73,23 @@ int main(int argc, char** argv) {
 
 		case 5:
 			std::cout << "Running BytesImage File Test on CPU! \n\n";
-			testLoadBytesImage("./resources/lena512color.tiff.bytes");
+			// testLoadBytesImage("./resources/lena512color.tiff.bytes");
 			std::cout << "\n\n ... Done!\n";
 			break;
 
 		case 6:
 			std::cout << "Running Median Filter on CPU! \n\n";
 			filArgs = {4, 4};
-			runCpuMedianFilter("./resources/lena512color.tiff.bytes", 
-				"./resources/lena512color_fil.bytes", filArgs);
+			// runCpuMedianFilter("./resources/lena512color.tiff.bytes", 
+				// "./resources/lena512color_fil.bytes", filArgs);
 			std::cout << "\n\n ... Done!\n";
 			break;
 
 		case 7:
 			std::cout << "Running Median Filter on GPU! \n\n";
 			filArgs = {4, 4};
-			runGpuMedianFilter("./resources/lena512color.tiff.bytes", 
-				"./resources/lena512color_fil.bytes", filArgs);
+			// runGpuMedianFilter("./resources/lena512color.tiff.bytes", 
+				// "./resources/lena512color_fil.bytes", filArgs);
 			std::cout << "\n\n ... Done!\n";
 			break;
 
@@ -139,20 +139,6 @@ int main(int argc, char** argv) {
 			break;
 	}
 
-	return 0;
-}
-
-int testLoadBytesImage(std::string filePath) {
-	ImageDim imgDim;
-	uint8_t * imgData;
-	int bytesRead = loadBytesImage(filePath, imgDim, &imgData);
-	int bytesExpected = imgDim.height * imgDim.width * imgDim.channels * imgDim.pixelSize;
-	if (bytesRead != bytesExpected) {
-		std::cout << "Read Failed - Insufficient Bytes - " << bytesRead 
-			<< " / "  << bytesExpected << " \n";
-		return -1;
-	}
-	std::cout << "Read Success - " << bytesRead << " Bytes \n"; 
 	return 0;
 }
 
