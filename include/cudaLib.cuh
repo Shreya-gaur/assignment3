@@ -195,15 +195,16 @@
 		ConvLayerArgs args, uint32_t batchSize);
 
 	extern __global__ void bias_Add (float * bias, float * output, TensorShape oShape);
-
 	extern int runGpuGemm (int argc, char ** argv);
 
-	extern int evaluateGpuGemm (TensorShape aShape, TensorShape bShape, 
-		TensorShape & cShape, GemmLayerArgs args);
-	
 	extern __global__ void gemmLayer_gpu (float * a, TensorShape aShape, 
 		float * b, TensorShape bShape,
 		float * c, TensorShape cShape,
 		GemmLayerArgs args, uint32_t batchSize);
+
+	extern int runGpuGemm (int argc, char ** argv);
+
+	extern int evaluateGpuGemm (TensorShape aShape, TensorShape bShape, 
+	TensorShape & cShape, GemmLayerArgs args);
 
 #endif

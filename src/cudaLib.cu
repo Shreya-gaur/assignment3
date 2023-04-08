@@ -547,7 +547,7 @@ int evaluateGpuGemm(TensorShape aShape, TensorShape bShape,
     dim3 dimBlock(args.tileW, args.tileH);
 	dim3 dimGrid(((cShape.width + args.tileW - 1)/args.tileW), ((cShape.height + args.tileH - 1)/args.tileH));
 
-	gemmLayer_gpu<<<dimGrid, dimBlock>>>(d_a, aShape, d_b, bShape, d_c, cShape, args, 1);
+	gemmLayer_gpu<<<dimGrid, dimBlock, 2*sharedMemorySize>>>(d_a, aShape, d_b, bShape, d_c, cShape, args, 1);
 
 	cudaMemcpy(c, d_c, tensorSize(cShape) * sizeof(float), cudaMemcpyDeviceToHost);
 
@@ -615,6 +615,8 @@ int evaluateGpuGemm(TensorShape aShape, TensorShape bShape,
 	return 0;
 }
 
+extern __shared__ float array[];
+
 __global__
 void gemmLayer_gpu (float * a, TensorShape aShape,
 	float * b, TensorShape bShape,
@@ -624,38 +626,40 @@ void gemmLayer_gpu (float * a, TensorShape aShape,
 	int row_l = threadIdx.y;
 	int col_l = threadIdx.x;
 
-	int offsetH = blockIdx.y * args.tileH;
-	int offsetW = blockIdx.x * args.tileW;
+	int subTile, subTileK;
 
-	int row_gl = blockIdx.y * blockDim.y + threadIdx.y;
-	int col_gl = blockIdx.x * blockDim.x + threadIdx.x;
-
-    const uint32_t subTilesAlongK = (aShape.width + args.tileH - 1) / args.tileH;	
-
-	int rowIdx, colIdx;
-	int subTile, subTileK, k;
+	float* subMatrixC = (float*)&c[cShape.width * args.tileH * blockIdx.y + args.tileW * blockIdx.x];
+	float Cout = 0.0;
 
 	#ifdef PRINT_DEBUG
 		printf("%d @ (%03d, %03d)  = %d\n", threadIdx, 
 		row + offsetH, col + offsetW, IDX2R(row + offsetH, col + offsetW, TILE_W));
 	#endif
 
-     for (subTile = 0; subTile < subTilesAlongK; ++ subTile) { // Which tile on the Cshape am I on?
+    const uint32_t subTilesAlongK = (aShape.width + args.tileH - 1) / args.tileH;	
+
+    for (subTile = 0; subTile < subTilesAlongK; ++ subTile) {
+
+		float* subMatrixA = (float*)&a[IDX2R(args.tileH * blockIdx.y, args.tileW * subTile, aShape.width)];
+		float* subMatrixB = (float*)&b[IDX2R(args.tileH * subTile, args.tileW * blockIdx.x, bShape.width)];
+
+		float* shrA = (float*) &array[0];
+		float* shrB = (float*) &array[args.tileH * args.tileW];
+
+		shrA[IDX2R(row_l, col_l, args.tileW)] = subMatrixA[IDX2R(row_l, col_l, aShape.width)];
+		shrB[IDX2R(row_l, col_l, args.tileW)] = subMatrixB[IDX2R(row_l, col_l, bShape.width)];
+		
+		__syncthreads();
 	
-		rowIdx = row_gl; 
-		colIdx = col_gl;
-
-		//  Check bounds of actual output matrix
-		if (rowIdx < cShape.height && colIdx < cShape.width) {
-			if (subTile == 0)
-                c[IDX2R(rowIdx, colIdx, cShape.width)] = 0; //cannot understand this
-
-			for (subTileK = 0; subTileK < args.tileH; ++ subTileK) {
-				k = subTile * args.tileH + subTileK;
-				if (k < aShape.width) {
-					c[IDX2R(rowIdx, colIdx, cShape.width)] += a[IDX2R(rowIdx, k, aShape.width)] * b[IDX2R(k, colIdx, bShape.width)];
-				}
-			}
+		// //  Check bounds of actual output matrix
+		if (subTile == 0)
+			Cout = 0;
+		for (subTileK = 0; subTileK < args.tileH; ++ subTileK) {
+			Cout += shrA[IDX2R(row_l, subTileK, args.tileW)] * shrB[IDX2R(subTileK, col_l, args.tileW)];
 		}
+		__syncthreads();
 	}
+	
+	subMatrixC[row_l * cShape.width + col_l] = Cout;
+
 }
